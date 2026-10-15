@@ -1,9 +1,11 @@
-
 import matplotlib.pyplot as plt
 import pandas as pd
 
 
-def plot_temperature_and_precipitation(temperature, precipitation):
+def plot_temperature_and_precipitation(
+    temperature: pd.DataFrame,
+    precipitation: pd.DataFrame
+) -> pd.DataFrame:
     """Plot temperature and precipitation using separate y-axes."""
 
     combined = temperature.merge(
@@ -47,7 +49,10 @@ def plot_temperature_and_precipitation(temperature, precipitation):
     return combined
 
 
-def compare_temperatures(temperature_1925, temperature_2025):
+def compare_temperatures(
+    temperature_1925: pd.DataFrame,
+    temperature_2025: pd.DataFrame
+) -> pd.DataFrame:
     """Align and plot daily mean temperatures by month and day."""
 
     old = temperature_1925[["date", "value"]].copy()
@@ -91,7 +96,10 @@ def compare_temperatures(temperature_1925, temperature_2025):
     return comparison
 
 
-def compare_summary_statistics(temperature_1925, temperature_2025):
+def compare_summary_statistics(
+    temperature_1925: pd.DataFrame,
+    temperature_2025: pd.DataFrame
+) -> pd.DataFrame:
     """Compare summary statistics for the two years."""
 
     statistics = pd.DataFrame({
