@@ -76,5 +76,4 @@ def get_daily_data(station_id, element, start_date, end_date):
         .sort_values("date")
         .reset_index(drop=True)
     )
-
     return df
