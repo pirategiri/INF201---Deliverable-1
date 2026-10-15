@@ -1,0 +1,9 @@
+station_id: SN17850
+year: 2025
+threshold_celsius: 27
+minimum_consecutive_days: 5
+number_of_heatwaves: 1
+heatwaves:
+- start_date: '2025-07-16'
+  end_date: '2025-07-22'
+  duration_days: 7
