@@ -1,4 +1,6 @@
 
+"""Detect heatwaves and save their dates as a YAML file."""
+
 from pathlib import Path
 
 import pandas as pd
@@ -7,15 +9,29 @@ import yaml
 from src.data_loader import get_daily_data
 
 
-def count_heatwaves(station_id, year, output_dir="outputs"):
-    """Count heatwaves and save a YAML summary.
-
-    A heatwave is five or more consecutive calendar days
-    with daily maximum temperature >= 27 degrees Celsius.
+def count_heatwaves(
+    station_id: str,
+    year: int,
+    output_dir: str | Path = "outputs",
+) -> dict[str, object]:
     """
+    Count heatwaves and save their date ranges to a YAML file.
 
+    A heatwave is defined as at least five consecutive days
+    with maximum daily temperatures of 27 degrees Celsius or higher.
+
+    Args:
+        station_id: Frost station ID, for example "SN17850".
+        year: Year to analyse, for example 2025.
+        output_dir: Directory where the YAML file will be saved.
+
+    Returns:
+        A dictionary containing heatwave dates, station ID,
+        station name, and year.
+    """
     year = int(year)
 
+    # Retrieve daily maximum temperatures from the Frost API.
     data = get_daily_data(
         station_id=station_id,
         element="max(air_temperature P1D)",
@@ -23,69 +39,69 @@ def count_heatwaves(station_id, year, output_dir="outputs"):
         end_date=f"{year}-12-31",
     )
 
-    data = data.set_index("date").sort_index()
-
-    # Include every calendar day. Missing observations break a run.
+    # Create a complete daily calendar so missing dates break a streak.
     calendar = pd.date_range(
         start=f"{year}-01-01",
         end=f"{year}-12-31",
         freq="D",
     )
 
-    daily_values = data["value"].reindex(calendar)
-    hot_days = daily_values.ge(27).fillna(False)
+    temperatures = (
+        data.set_index("date")["value"]
+        .sort_index()
+        .reindex(calendar)
+    )
 
-    heatwaves = []
+    # A hot day has a maximum temperature >= 27 degrees Celsius.
+    hot_days = temperatures.ge(27).fillna(False)
+
+    dates = []
     run_start = None
-    previous_day = None
 
+    # Find consecutive runs of hot days.
     for date, is_hot in hot_days.items():
         if is_hot:
             if run_start is None:
                 run_start = date
 
-            previous_day = date
+        elif run_start is not None:
+            duration = (date - run_start).days
 
-        else:
-            if run_start is not None:
-                duration = (previous_day - run_start).days + 1
+            if duration >= 5:
+                run_end = date - pd.Timedelta(days=1)
+                dates.append(
+                    f"{run_start:%Y-%m-%d} - {run_end:%Y-%m-%d}"
+                )
 
-                if duration >= 5:
-                    heatwaves.append({
-                        "start_date": run_start.strftime("%Y-%m-%d"),
-                        "end_date": previous_day.strftime("%Y-%m-%d"),
-                        "duration_days": duration,
-                    })
+            run_start = None
 
-                run_start = None
-                previous_day = None
-
-    # Handle a heatwave that continues through 31 December.
+    # Handle a heatwave that continues through the final day of the year.
     if run_start is not None:
-        duration = (previous_day - run_start).days + 1
+        duration = (calendar[-1] - run_start).days + 1
 
         if duration >= 5:
-            heatwaves.append({
-                "start_date": run_start.strftime("%Y-%m-%d"),
-                "end_date": previous_day.strftime("%Y-%m-%d"),
-                "duration_days": duration,
-            })
+            dates.append(
+                f"{run_start:%Y-%m-%d} - {calendar[-1]:%Y-%m-%d}"
+            )
 
+    # Set the station name for the station used in the assignment.
+    station_name = "Ås" if station_id == "SN17850" else station_id
+
+    # Match the structure of the assignment's sample YAML file.
     summary = {
+        "dates": dates,
         "station_id": station_id,
+        "station_name": station_name,
         "year": year,
-        "threshold_celsius": 27,
-        "minimum_consecutive_days": 5,
-        "number_of_heatwaves": len(heatwaves),
-        "heatwaves": heatwaves,
     }
 
+    # Create the output directory if it does not already exist.
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    filename = f"heatwaves_{station_id}_{year}.yml"
-    file_path = output_path / filename
+    file_path = output_path / f"heatwaves_{station_id}_{year}.yml"
 
+    # Write valid UTF-8 YAML, preserving the character Å.
     with file_path.open("w", encoding="utf-8") as file:
         yaml.safe_dump(
             summary,
@@ -95,5 +111,6 @@ def count_heatwaves(station_id, year, output_dir="outputs"):
         )
 
     print(f"Heatwave summary saved to: {file_path}")
+    print(f"Number of heatwaves: {len(dates)}")
 
     return summary
